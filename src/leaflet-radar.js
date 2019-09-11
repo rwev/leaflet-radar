@@ -1,30 +1,19 @@
 L.Control.Radar = L.Control.extend({
-        NEXRAD_URL:
-                "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi",
+        
+        NEXRAD_URL: "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi",
         NEXRAD_LAYER: "nexrad-n0q-900913",
 
-        PLAY: "&#9658;",
-        PAUSE: "&#9616;",
         isPaused: false,
         timeLayerIndex: 0,
-
-        DEFAULT_OVERLAY_LAYER_OPTIONS: {
-                format: "image/png",
-                transparent: true,
-                opacity: 0.575,
-                zIndex: 200
-        },
-
-        _timeLayers: [],
+        timeLayers: [],
 
         options: {
+                position: 'topright',
                 opacity: 0.575,
                 zIndex: 200,
-                transitionMs: 750
-        },
-
-        initialize: function(options) {
-                L.setOptions(this, options);
+                transitionMs: 750,
+                playHTML: "&#9658;",
+                pauseHTML: "&#9616;",
         },
 
         onRemove: function() {
@@ -35,7 +24,8 @@ L.Control.Radar = L.Control.extend({
                 this.map = map;
 
                 // setup control container
-                this.container = L.DomUtil.create("div", "control_container");
+                this.container = L.DomUtil.create("div", "leaflet-radar");
+                
                 L.DomEvent.disableClickPropagation(this.container);
                 L.DomEvent.on(this.container, "control_container", function(e) {
                         L.DomEvent.stopPropagation(e);
@@ -43,181 +33,180 @@ L.Control.Radar = L.Control.extend({
                 L.DomEvent.disableScrollPropagation(this.container);
 
                 // add control elements within container
-                this.checkbox = L.DomUtil.create(
+                checkbox_div = L.DomUtil.create(
                         "div",
                         "radar-toggle",
                         this.container
                 );
-                this.checkbox.innerHTML =
-                        '<input id="radar-toggle" type="checkbox">Radar</input>';
+        
+                this.checkbox = document.createElement('input');
+                this.checkbox.id = 'radar-toggle';
+                this.checkbox.type = 'checkbox';
+                this.checkbox.checked = false;
+                this.checkbox.onclick = () => this.toggle();
+                
+                checkbox_div.appendChild(this.checkbox);
 
-                this.button = L.DomUtil.create(
+                checkbox_label = document.createElement('span');
+                checkbox_label.innerText = 'Radar';
+                
+                checkbox_div.appendChild(checkbox_label);
+
+                button_div = L.DomUtil.create(
                         "div",
                         "radar-button",
                         this.container
                 );
 
-                this.slider = L.DomUtil.create(
+                this.button = document.createElement('button');
+                this.button.id = "radar-button";
+                this.button.innerHTML = this.options.playHTML;
+                this.button.disabled = true;
+                
+                button_div.appendChild(this.button);
+
+                slider_div = L.DomUtil.create(
                         "div",
                         "radar-slider",
                         this.container
-                );
+                );                                 
 
-                this.timestamp = L.DomUtil.create(
+                this.slider = document.createElement('input');
+                this.slider.id = "radar-slider";
+                this.slider.type = "range";
+                this.slider.min = 0;
+
+                slider_div.appendChild(this.slider);
+
+                this.timestamp_div = L.DomUtil.create(
                         "div",
                         "radar-timestamp",
                         this.container
                 );
 
-                // register handlers
-                this.checkbox.checked = false;
-                this.checkbox.onclick = () => this._toggleRadar();
+                this.setDisabled(true);
+                this.setPaused(true);
 
                 return this.container;
         },
 
-        _hideElement: function(el) {
-                el.style.display = "none";
-        },
-        _showElement: function(el) {
-                el.style.display = "block";
+        hideLayerByIndex: function(index) {
+                this.timeLayers[index].tileLayer.setOpacity(0);
+                this.timestamp_div.innerHTML = "";
         },
 
-        _removeRadar: function() {
-                this._timeLayers.forEach(timeLayer =>
-                        timeLayer.tileLayer.removeFrom(this.map)
-                );
-        },
-
-        _addRadar: function() {
-                this._timeLayers.forEach(timeLayer => {
-                        timeLayer.tileLayer.setOpacity(0);
-                        timeLayer.tileLayer.addTo(this.map);
-                });
-        },
-
-        _hideAllTimeLayers: function() {
-                this._timeLayers.forEach(timeLayer =>
-                        timeLayer.tileLayer.setOpacity(0)
-                );
-        },
-
-        _hideTimeLayerByIndex: function(index) {
-                this._timeLayers[index].tileLayer.setOpacity(0);
-                this.timestamp.innerText = "";
-        },
-
-        _showTimeLayerByIndex: function(index) {
-                this._timeLayers[index].tileLayer.setOpacity(
+        showLayerByIndex: function(index) {
+                this.timeLayers[index].tileLayer.setOpacity(
                         this.options.opacity
                 );
-                this.timestamp.innerText = this._timeLayers[index].timestamp;
+                this.timestamp_div.innerHTML = this.timeLayers[index].timestamp;
         },
 
-        _toggleRadar: function() {
-                if (!this.checkbox.checked) { // TODO always false, select input by ID
-                        this._removeRadar();
+        setPaused: function(paused) {
+                if (paused) {
+                        this.button.innerHTML = `${this.options.playHTML}`;
+                } else {
+                this.button.innerHTML = `${this.options.pauseHTML}`;
+                }
+                this.isPaused = paused;
+        },
+
+        setDisabled: function(disabled) {
+                this.button.disabled = disabled;
+                this.slider.disabled = disabled;
+                this.timestamp_div.innerText = "";
+        }, 
+
+        toggle: function() {
+                if (!this.checkbox.checked) { 
+                        this.setDisabled(true);
+                        this.removeLayers();
                         return;
                 }
 
-                this._showElement(this.button);
-                this._showElement(this.slider);
-                this._showElement(this.timestamp);
+                this.setDisabled(false);
 
-                this._timeLayers = this._generateTimeLayers();
-                this._addRadar(this._timeLayers);
+                this.timeLayers = this.generateLayers();
+                this.addLayers(this.timeLayers);
 
-                // calibrate slider
-                // TODO set element attributes instead of inserting
-                this.slider.innerHTML = `<input id="radar-slider" type="range" min="${0}" max="${this
-                        ._timeLayers.length - 1}">`;
+                this.slider.max =`${this.timeLayers.length - 1}`;
 
                 this.timeLayerIndex = 0;
-                this.isPaused = false;
 
-                this.button.innerHTML = `<button id="radar-play">${
-                        this.PAUSE
-                }</button>`;
+                this.setPaused(false);
+
                 this.slider.oninput = () => {
+
+                        this.hideLayerByIndex(this.timeLayerIndex);
                         this.timeLayerIndex = +this.slider.value;
+                        this.showLayerByIndex(this.timeLayerIndex);
 
-                        // hide all TODO or just the previous?
-                        this._hideTimeLayers();
-
-                        // show the selected
-                        this._showTimeLayerByIndex(this.timeLayerIndex);
-                        this._timeLayers.forEach(timeLayer => {
-                                timeLayer.tileLayer.setOpacity(0);
-                                timeLayer.tileLayer.addTo(this.map);
-                        });
-
-                        this._pause();
+                        this.setPaused(true);
                 };
 
                 this.button.onclick = () => {
                         if (this.isPaused) {
-                                this._play();
-                                this._timeLayerTransitionTimer();
+                                this.setPaused(false);
+                                this.setTransitionTimer();
                         } else {
-                                this._pause();
+                                this.setPaused(true);
                         }
                 };
 
-                this._timeLayerTransitionTimer();
+                this.setTransitionTimer();
         },
 
-        _pause: function() {
-                this.button.innerHTML = `<button id="radar-button">${
-                        this.PLAY
-                }</button>`;
-                this.isPaused = true;
-        },
 
-        _play: function() {
-                this.button.innerHTML = `<button id="radar-play">${
-                        this.PAUSE
-                }</button>`;
-                this.isPaused = false;
-        },
-
-        _timeLayerTransitionTimer: function() {
+        setTransitionTimer: function() {
                 setTimeout(() => {
                         if (this.isPaused) {
                                 return;
                         }
 
-                        this._timeLayers.forEach(timeLayer => {
+                        this.timeLayers.forEach(timeLayer => {
                                 timeLayer.tileLayer.setOpacity(0);
                                 timeLayer.tileLayer.addTo(this.map);
                         });
 
-                        // hide current layer
-                        this._timeLayers[
-                                this.timeLayerIndex
-                        ].tileLayer.setOpacity(0);
-
-                        this._incrementTimeLayerIndex();
-
                         if (this.checkbox.checked) {
-                                this._showTimeLayerByIndex(this.timeLayerIndex);
+
+                                this.hideLayerByIndex(this.timeLayerIndex);
+                                this.incrementLayerIndex();
+                                this.showLayerByIndex(this.timeLayerIndex);
+                                
                                 this.slider.value = `${this.timeLayerIndex}`;
-                                this._timeLayerTransitionTimer();
+                                
+                                this.setTransitionTimer();
                         } else {
-                                this._hideElement(this.button);
-                                this._hideElement(this.timestamp);
-                                this._hideElement(this.slider);
+                                this.setDisabled(true);
+                                this.removeLayers();
                         }
                 }, this.options.transitionMs);
         },
 
-        _incrementTimeLayerIndex: function() {
+        incrementLayerIndex: function() {
                 this.timeLayerIndex++;
-                if (this.timeLayerIndex > this._timeLayers.length - 1) {
+                if (this.timeLayerIndex > this.timeLayers.length - 1) {
                         this.timeLayerIndex = 0;
                 }
         },
 
-        _generateTimeLayers: function() {
+        addLayers: function() {
+                this.timeLayers.forEach(timeLayer => {
+                        timeLayer.tileLayer.setOpacity(0);
+                        timeLayer.tileLayer.addTo(this.map);
+                });
+        },
+
+        removeLayers: function() {
+                this.timeLayers.forEach(timeLayer =>
+                        timeLayer.tileLayer.removeFrom(this.map)
+                );
+                this.timeLayers = [];
+                this.timeLayerIndex = 0;
+        },
+        
+        generateLayers: function() {
                 let timeLayers = [];
 
                 const TOTAL_INTERVALS = 10;
@@ -237,9 +226,13 @@ L.Control.Radar = L.Control.extend({
                                 (!!timeDiffMins
                                         ? "-m" + timeDiffMins + "m"
                                         : "");
+
                         const layer = L.tileLayer.wms(this.NEXRAD_URL, {
                                 layers: layerRequest,
-                                ...this.DEFAULT_OVERLAY_LAYER_OPTIONS
+                                format: "image/png",
+                                transparent: true,
+                                opacity: this.options.opacity,
+                                zIndex: this.options.zIndex
                         });
 
                         const timeString = new Date(
