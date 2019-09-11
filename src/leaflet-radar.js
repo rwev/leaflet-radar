@@ -1,3 +1,5 @@
+// TODO add refresh (reload time layers)
+
 L.Control.Radar = L.Control.extend({
         
         NEXRAD_URL: `https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi`,

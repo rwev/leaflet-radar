@@ -5,5 +5,11 @@
         background: #fff;
         border: 2px solid rgba(0, 0, 0, 0.2);
         background-clip: padding-box;
+        
+        padding: 5px;
+        height: 67.5px;
+}
 
+.leaflet-radar .leaflet-radar-timestamp {
+        text-align: center;
 }
