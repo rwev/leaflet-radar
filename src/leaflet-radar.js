@@ -1,19 +1,19 @@
 L.Control.Radar = L.Control.extend({
         
-        NEXRAD_URL: "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi",
-        NEXRAD_LAYER: "nexrad-n0q-900913",
+        NEXRAD_URL: `https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi`,
+        NEXRAD_LAYER: `nexrad-n0q-900913`,
 
         isPaused: false,
         timeLayerIndex: 0,
         timeLayers: [],
 
         options: {
-                position: 'topright',
+                position: `topright`,
                 opacity: 0.575,
                 zIndex: 200,
                 transitionMs: 750,
-                playHTML: "&#9658;",
-                pauseHTML: "&#9616;",
+                playHTML: `&#9658;`,
+                pauseHTML: `&#9616;`,
         },
 
         onRemove: function() {
@@ -24,75 +24,62 @@ L.Control.Radar = L.Control.extend({
                 this.map = map;
 
                 // setup control container
-                this.container = L.DomUtil.create("div", "leaflet-radar");
+                this.container = L.DomUtil.create(`div`, "leaflet-radar");
                 
                 L.DomEvent.disableClickPropagation(this.container);
-                L.DomEvent.on(this.container, "control_container", function(e) {
+                L.DomEvent.on(this.container, `control_container`, function(e) {
                         L.DomEvent.stopPropagation(e);
                 });
                 L.DomEvent.disableScrollPropagation(this.container);
 
                 // add control elements within container
                 checkbox_div = L.DomUtil.create(
-                        "div",
-                        "radar-toggle",
+                        `div`,
+                        `leaflet-radar-toggle`,
                         this.container
                 );
         
-                this.checkbox = document.createElement('input');
-                this.checkbox.id = 'radar-toggle';
-                this.checkbox.type = 'checkbox';
+                this.checkbox = document.createElement(`input`);
+                this.checkbox.id = `leaflet-radar-toggle`;
+                this.checkbox.type = `checkbox`;
                 this.checkbox.checked = false;
                 this.checkbox.onclick = () => this.toggle();
                 
                 checkbox_div.appendChild(this.checkbox);
 
-                checkbox_label = document.createElement('span');
-                checkbox_label.innerText = 'Radar';
+                checkbox_label = document.createElement(`span`);
+                checkbox_label.innerText = `Radar`;
                 
                 checkbox_div.appendChild(checkbox_label);
 
-                button_div = L.DomUtil.create(
-                        "div",
-                        "radar-button",
-                        this.container
-                );
-
-                this.button = document.createElement('button');
-                this.button.id = "radar-button";
-                this.button.innerHTML = this.options.playHTML;
-                this.button.disabled = true;
-                
-                button_div.appendChild(this.button);
-
                 slider_div = L.DomUtil.create(
-                        "div",
-                        "radar-slider",
+                        `div`,
+                        `leaflet-radar-slider`,
                         this.container
                 );                                 
 
-                this.slider = document.createElement('input');
-                this.slider.id = "radar-slider";
-                this.slider.type = "range";
+                this.slider = document.createElement(`input`);
+                this.slider.id = `leaflet-radar-slider`;
+                this.slider.type = `range`;
                 this.slider.min = 0;
 
                 slider_div.appendChild(this.slider);
 
                 this.timestamp_div = L.DomUtil.create(
-                        "div",
-                        "radar-timestamp",
+                        `div`,
+                        `leaflet-radar-timestamp`,
                         this.container
                 );
 
                 this.setDisabled(true);
-                this.setPaused(true);
+                this.isPaused =true;
 
                 return this.container;
         },
 
         hideLayerByIndex: function(index) {
                 this.timeLayers[index].tileLayer.setOpacity(0);
-                this.timestamp_div.innerHTML = "";
+                this.timestamp_div.innerHTML = ``;
         },
 
         showLayerByIndex: function(index) {
@@ -102,19 +89,9 @@ L.Control.Radar = L.Control.extend({
                 this.timestamp_div.innerHTML = this.timeLayers[index].timestamp;
         },
 
-        setPaused: function(paused) {
-                if (paused) {
-                        this.button.innerHTML = `${this.options.playHTML}`;
-                } else {
-                this.button.innerHTML = `${this.options.pauseHTML}`;
-                }
-                this.isPaused = paused;
-        },
-
         setDisabled: function(disabled) {
-                this.button.disabled = disabled;
                 this.slider.disabled = disabled;
-                this.timestamp_div.innerText = "";
+                this.timestamp_div.innerText = ``;
         }, 
 
         toggle: function() {
@@ -133,7 +110,7 @@ L.Control.Radar = L.Control.extend({
 
                 this.timeLayerIndex = 0;
 
-                this.setPaused(false);
+                this.isPaused =false;
 
                 this.slider.oninput = () => {
 
@@ -141,16 +118,7 @@ L.Control.Radar = L.Control.extend({
                         this.timeLayerIndex = +this.slider.value;
                         this.showLayerByIndex(this.timeLayerIndex);
 
-                        this.setPaused(true);
-                };
-
-                this.button.onclick = () => {
-                        if (this.isPaused) {
-                                this.setPaused(false);
-                                this.setTransitionTimer();
-                        } else {
-                                this.setPaused(true);
-                        }
+                        this.isPaused =true;
                 };
 
                 this.setTransitionTimer();
@@ -224,12 +192,12 @@ L.Control.Radar = L.Control.extend({
                         const layerRequest =
                                 this.NEXRAD_LAYER +
                                 (!!timeDiffMins
-                                        ? "-m" + timeDiffMins + "m"
-                                        : "");
+                                        ? `-m` + timeDiffMins + "m"
+                                        : ``);
 
                         const layer = L.tileLayer.wms(this.NEXRAD_URL, {
                                 layers: layerRequest,
-                                format: "image/png",
+                                format: `image/png`,
                                 transparent: true,
                                 opacity: this.options.opacity,
                                 zIndex: this.options.zIndex
