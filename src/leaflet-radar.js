@@ -191,15 +191,18 @@ L.Control.Radar = L.Control.extend({
                 TOTAL_INTERVALS * INTERVAL_LENGTH_HRS -
                 INTERVAL_LENGTH_HRS * i;
 
-            if (timeDiffMins === 5) {
-                continue;
-            } // broken IDKY
+            const suffix = (function(time) {  
+                switch(time) {
+                    case 0:
+                        return '';
+                    case 5:
+                        return '-m05m';
+                    default:
+                        return '-m' + time + 'm';
+                }
+                })(timeDiffMins);
 
-            const layerRequest =
-                this.NEXRAD_LAYER +
-                (!!timeDiffMins
-                    ? `-m` + timeDiffMins + "m"
-                    : ``);
+            const layerRequest = this.NEXRAD_LAYER + suffix;
 
             const layer = L.tileLayer.wms(this.NEXRAD_URL, {
                 layers: layerRequest,
